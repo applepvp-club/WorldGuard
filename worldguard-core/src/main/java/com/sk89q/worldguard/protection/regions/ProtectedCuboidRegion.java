@@ -154,6 +154,10 @@ public class ProtectedCuboidRegion extends ProtectedRegion {
     protected boolean intersects(ProtectedRegion region, Area thisArea) {
         if (region instanceof ProtectedCuboidRegion) {
             return intersectsBoundingBox(region);
+        } else if (region instanceof ProtectedPolygonalRegion polygon) {
+            BlockVector3 min = getMinimumPoint();
+            BlockVector3 max = getMaximumPoint();
+            return intersectsBoundingBox(region) && polygon.intersectsRectangle(min.x(), min.z(), max.x(), max.z());
         } else {
             return super.intersects(region, thisArea);
         }

@@ -189,6 +189,79 @@ public class ProtectedPolygonalRegion extends ProtectedRegion {
         return area;
     }
 
+    @Override
+    protected boolean intersects(ProtectedRegion region, Area thisArea) {
+        if (region instanceof ProtectedCuboidRegion) {
+            BlockVector3 regionMin = region.getMinimumPoint();
+            BlockVector3 regionMax = region.getMaximumPoint();
+            return intersectsBoundingBox(region)
+                    && intersectsRectangle(regionMin.x(), regionMin.z(), regionMax.x(), regionMax.z());
+        }
+        return super.intersects(region, thisArea);
+    }
+
+    boolean intersectsRectangle(int minX, int minZ, int maxX, int maxZ) {
+        if (points.isEmpty()) return false;
+
+        double left = minX - 0.5;
+        double bottom = minZ - 0.5;
+        double right = maxX + 1.5;
+        double top = maxZ + 1.5;
+
+        BlockVector2 previous = points.get(points.size() - 1);
+        for (BlockVector2 point : points) {
+            if (segmentCrossesOpenRectangle(previous.x() + 0.5, previous.z() + 0.5,
+                    point.x() + 0.5, point.z() + 0.5, left, bottom, right, top))
+                return true;
+            previous = point;
+        }
+
+        return containsEvenOdd(((double) minX + maxX + 1) / 2, ((double) minZ + maxZ + 1) / 2);
+    }
+
+    private static boolean segmentCrossesOpenRectangle(double x1, double z1, double x2, double z2,
+                                                       double left, double bottom, double right, double top) {
+        double low = Double.NEGATIVE_INFINITY;
+        double high = Double.POSITIVE_INFINITY;
+
+        double dx = x2 - x1;
+        if (dx == 0) {
+            if (x1 <= left || x1 >= right) return false;
+        } else {
+            double first = (left - x1) / dx;
+            double second = (right - x1) / dx;
+            low = Math.max(low, Math.min(first, second));
+            high = Math.min(high, Math.max(first, second));
+        }
+
+        double dz = z2 - z1;
+        if (dz == 0) {
+            if (z1 <= bottom || z1 >= top) return false;
+        } else {
+            double first = (bottom - z1) / dz;
+            double second = (top - z1) / dz;
+            low = Math.max(low, Math.min(first, second));
+            high = Math.min(high, Math.max(first, second));
+        }
+
+        return low < high && low < 1 && high > 0;
+    }
+
+    private boolean containsEvenOdd(double x, double z) {
+        boolean inside = false;
+        BlockVector2 previous = points.get(points.size() - 1);
+        for (BlockVector2 point : points) {
+            double x1 = previous.x();
+            double z1 = previous.z();
+            double x2 = point.x();
+            double z2 = point.z();
+            if ((z1 > z) != (z2 > z) && x < (x2 - x1) * (z - z1) / (z2 - z1) + x1)
+                inside = !inside;
+            previous = point;
+        }
+        return inside;
+    }
+
     /**
      * Sweep the unit square along the given edge, producing the area covered by the blocks that the
      * edge passes through.

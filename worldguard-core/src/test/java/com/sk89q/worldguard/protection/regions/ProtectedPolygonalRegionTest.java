@@ -23,6 +23,7 @@ import com.sk89q.worldedit.math.BlockVector2;
 import com.sk89q.worldedit.math.BlockVector3;
 import org.junit.jupiter.api.Test;
 
+import java.awt.geom.Area;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -207,6 +208,34 @@ public class ProtectedPolygonalRegionTest {
                 if (first.contains(position) && second.contains(position)) return true;
             }
         return false;
+    }
+
+    @Test
+    public void testCuboidIntersectionMatchesArea() {
+        Random random = new Random(1537);
+        for (int iteration = 0; iteration < 20000; iteration++) {
+            int count = 1 + random.nextInt(12);
+            int[] coordinates = new int[count * 2];
+            for (int i = 0; i < coordinates.length; i++)
+                coordinates[i] = random.nextInt(41) - 20;
+            ProtectedPolygonalRegion polygon = polygon(0, 10, coordinates);
+
+            int minX = random.nextInt(51) - 25;
+            int minZ = random.nextInt(51) - 25;
+            int maxX = minX + random.nextInt(16);
+            int maxZ = minZ + random.nextInt(16);
+            ProtectedCuboidRegion cuboid = new ProtectedCuboidRegion("cuboid",
+                    BlockVector3.at(minX, random.nextInt(21) - 5, minZ), BlockVector3.at(maxX, random.nextInt(21) - 5, maxZ));
+
+            Area expectedArea = polygon.toArea();
+            expectedArea.intersect(cuboid.toArea());
+            boolean expected = polygon.intersectsBoundingBox(cuboid) && !expectedArea.isEmpty()
+                    && expectedArea.getBounds2D().getWidth() > 1e-9 && expectedArea.getBounds2D().getHeight() > 1e-9;
+            String description = Arrays.toString(coordinates) + " vs " + cuboid.getMinimumPoint() + " " + cuboid.getMaximumPoint();
+
+            assertEquals(expected, !cuboid.getIntersectingRegions(List.<ProtectedRegion>of(polygon)).isEmpty(), description);
+            assertEquals(expected, !polygon.getIntersectingRegions(List.<ProtectedRegion>of(cuboid)).isEmpty(), description);
+        }
     }
 
     @Test
